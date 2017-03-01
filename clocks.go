@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
-	gfx "github.com/veandco/go-sdl2/sdl_gfx"
+	"github.com/veandco/go-sdl2/sdl_gfx"
 )
 
 type clock struct {
-	minute int
-	hour   int
+	minute float64
+	hour   float64
 }
 
 type grid [][]clock
@@ -20,6 +20,7 @@ type grid [][]clock
 const (
 	clockRadius = 32
 	gutter      = 6
+	frameRate   = 60
 )
 
 func main() {
@@ -46,6 +47,17 @@ func run(g *grid) error {
 	defer w.Destroy()
 	defer r.Destroy()
 
+	go func() {
+		for range time.Tick(time.Second) {
+			for dx := range *g {
+				for dy := range (*g)[dx] {
+					now := time.Now()
+					(*g)[dx][dy].minute = (float64(now.Second()) / 60) * 2 * math.Pi
+				}
+			}
+		}
+	}()
+
 	return loop(r, g)
 }
 
@@ -60,11 +72,10 @@ func loop(r *sdl.Renderer, g *grid) error {
 				if err := (*g)[dx][dy].draw(r, dx, dy); err != nil {
 					return fmt.Errorf("could not draw clock: %v", err)
 				}
-				(*g)[dx][dy].minute++
 			}
 		}
 		r.Present()
-		time.Sleep(25 * time.Millisecond)
+		sdl.Delay(1000 / frameRate)
 	}
 }
 
@@ -76,14 +87,14 @@ func (c *clock) draw(r *sdl.Renderer, dx, dy int) error {
 		return fmt.Errorf("could not draw circle: %v", sdl.GetError())
 	}
 
-	mx := x + int(clockRadius*0.8*math.Cos(3*math.Pi/2+((float64(c.minute)/60.0)*2*math.Pi))-0.5)
-	my := y + int(clockRadius*0.8*math.Sin(3*math.Pi/2+((float64(c.minute)/60.0)*2*math.Pi))-0.5)
+	mx := x + int(clockRadius*0.8*math.Cos(3*math.Pi/2+c.minute)-0.5)
+	my := y + int(clockRadius*0.8*math.Sin(3*math.Pi/2+c.minute)-0.5)
 	if result := gfx.AALineColor(r, x, y, mx, my, color); result == false {
 		return fmt.Errorf("could not draw minute hand: %v", sdl.GetError())
 	}
 
-	hx := x + int(clockRadius*0.6*math.Cos(3*math.Pi/2+((float64(c.hour)/60.0)*2*math.Pi))-0.5)
-	hy := y + int(clockRadius*0.6*math.Sin(3*math.Pi/2+((float64(c.hour)/60.0)*2*math.Pi))-0.5)
+	hx := x + int(clockRadius*0.6*math.Cos(3*math.Pi/2+c.hour)-0.5)
+	hy := y + int(clockRadius*0.6*math.Sin(3*math.Pi/2+c.hour)-0.5)
 	if result := gfx.AALineColor(r, x, y, hx, hy, color); result == false {
 		return fmt.Errorf("could not draw minute hand: %v", sdl.GetError())
 	}
