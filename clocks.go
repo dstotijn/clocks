@@ -11,8 +11,10 @@ import (
 )
 
 type clock struct {
-	minute float64
-	hour   float64
+	minute    int
+	hour      int
+	minuteRad float64 // Angle in radians.
+	hourRad   float64 // Angle in radians.
 }
 
 type grid [][]clock
@@ -47,16 +49,11 @@ func run(g *grid) error {
 	defer w.Destroy()
 	defer r.Destroy()
 
-	go func() {
-		for range time.Tick(time.Second) {
-			for dx := range *g {
-				for dy := range (*g)[dx] {
-					now := time.Now()
-					(*g)[dx][dy].minute = (float64(now.Second()) / 60) * 2 * math.Pi
-				}
-			}
+	for dx := range *g {
+		for dy := range (*g)[dx] {
+			go (*g)[dx][dy].tween(240, 9, time.Duration(dx+dy+1)*time.Second)
 		}
-	}()
+	}
 
 	return loop(r, g)
 }
@@ -87,17 +84,45 @@ func (c *clock) draw(r *sdl.Renderer, dx, dy int) error {
 		return fmt.Errorf("could not draw circle: %v", sdl.GetError())
 	}
 
-	mx := x + int(clockRadius*0.8*math.Cos(3*math.Pi/2+c.minute)-0.5)
-	my := y + int(clockRadius*0.8*math.Sin(3*math.Pi/2+c.minute)-0.5)
+	mx := x + int(clockRadius*0.8*math.Cos(3*math.Pi/2+c.minuteRad)-0.5)
+	my := y + int(clockRadius*0.8*math.Sin(3*math.Pi/2+c.minuteRad)-0.5)
 	if result := gfx.AALineColor(r, x, y, mx, my, color); result == false {
 		return fmt.Errorf("could not draw minute hand: %v", sdl.GetError())
 	}
 
-	hx := x + int(clockRadius*0.6*math.Cos(3*math.Pi/2+c.hour)-0.5)
-	hy := y + int(clockRadius*0.6*math.Sin(3*math.Pi/2+c.hour)-0.5)
+	hx := x + int(clockRadius*0.6*math.Cos(3*math.Pi/2+c.hourRad)-0.5)
+	hy := y + int(clockRadius*0.6*math.Sin(3*math.Pi/2+c.hourRad)-0.5)
 	if result := gfx.AALineColor(r, x, y, hx, hy, color); result == false {
 		return fmt.Errorf("could not draw minute hand: %v", sdl.GetError())
 	}
 
 	return nil
+}
+
+func (c *clock) tween(minute int, hour int, duration time.Duration) {
+	minRadDelta := minuteToRad(minute) - minuteToRad(c.minute)
+	hourRadDelta := hourToRad(hour) - hourToRad(c.hour)
+	c.minute = minute
+	c.hour = hour
+
+	i := 0
+	cycles := frameRate * int(duration.Seconds())
+	go func() {
+		for range time.Tick(time.Second / frameRate) {
+			c.minuteRad += minRadDelta / float64(cycles)
+			c.hourRad += hourRadDelta / float64(cycles)
+			if i == cycles {
+				break
+			}
+			i++
+		}
+	}()
+}
+
+func minuteToRad(minute int) float64 {
+	return (float64(minute) / 60) * 2 * math.Pi
+}
+
+func hourToRad(hour int) float64 {
+	return (float64(hour) / 12) * 2 * math.Pi
 }
