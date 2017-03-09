@@ -20,15 +20,17 @@ type clock struct {
 type grid [][]clock
 
 const (
-	clockRadius = 32
-	gutter      = 6
-	frameRate   = 60
+	clockRadius  = 32
+	gutter       = 6
+	frameRate    = 60
+	windowWidth  = 1280
+	windowHeight = 720
 )
 
 func main() {
-	g := make(grid, 16)
+	g := make(grid, windowWidth/80)
 	for i := range g {
-		g[i] = make([]clock, 9)
+		g[i] = make([]clock, windowHeight/80)
 	}
 	if err := run(&g); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -42,7 +44,7 @@ func run(g *grid) error {
 	}
 	defer sdl.Quit()
 
-	w, r, err := sdl.CreateWindowAndRenderer(1280, 720, sdl.WINDOW_SHOWN)
+	w, r, err := sdl.CreateWindowAndRenderer(windowWidth, windowHeight, sdl.WINDOW_SHOWN)
 	if err != nil {
 		return fmt.Errorf("could not create window: %v", err)
 	}
